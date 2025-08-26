@@ -1,0 +1,195 @@
+<!doctype html>
+
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Waifu — Local Videos (Google Drive)</title>
+  <style>
+    :root{--bg:#071126;--card:#091427;--muted:#a8b4c2;--accent:#7dd3fc}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Roboto,system-ui,Segoe UI,Arial;background:var(--bg);color:#eaf5ff}
+    header{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.03);background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent)}
+    .back{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:8px;border-radius:10px;color:var(--muted);cursor:pointer}
+    .title{font-weight:700}
+    main{padding:12px}.player-wrap{max-width:920px;margin:14px auto;display:flex;flex-direction:column;gap:10px}
+.player-frame{width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center}
+iframe,video{width:100%;height:100%;border:0}
+
+.controls{display:flex;gap:8px;align-items:center;justify-content:center}
+.btn{background:linear-gradient(180deg, rgba(125,211,252,0.12), rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.03);padding:8px 12px;border-radius:10px;color:var(--muted);cursor:pointer;font-weight:600}
+.meta{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px}
+
+.list{max-width:920px;margin:12px auto;display:flex;gap:8px;overflow:auto;padding-bottom:6px}
+.thumb{min-width:120px;height:70px;border-radius:8px;background-size:cover;background-position:center;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
+
+footer{padding:16px;text-align:center;color:var(--muted);font-size:13px}
+
+@media (max-width:720px){.player-wrap{margin:10px auto;padding:0 6px}.thumb{min-width:90px;height:56px}}
+
+  </style>
+</head>
+<body>
+  <header>
+    <button class="back" id="backBtn">← Kembali</button>
+    <div class="title">Local Videos — Google Drive</div>
+  </header>  <main>
+    <div class="player-wrap">
+      <div class="player-frame" id="playerFrame">
+        <!-- iframe or video element will be injected here -->
+        <div id="playerEmpty" style="color:var(--muted);font-size:14px">Belum ada video. Silakan tambahkan link di array <code>videoList</code> di file ini.</div>
+      </div><div class="meta">
+    <div id="nowInfo">0 / 0</div>
+    <div>
+      <button class="btn" id="openNew">Buka di tab baru</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="prevBtn">Prev</button>
+    <button class="btn" id="nextBtn">Next</button>
+  </div>
+
+  <div class="list" id="thumbs"></div>
+</div>
+
+  </main>  <footer>
+    Gunakan link Google Drive dengan format:
+    <pre style="display:inline;color:#9fbdd6">https://drive.google.com/file/d/VIDEO_ID/preview</pre>
+    atau share link biasa (&nbsp;https://drive.google.com/file/d/VIDEO_ID/view?usp=sharing&nbsp;) — skrip akan otomatis mengonversi.
+  </footer>  <script>
+    // === CONFIG ===
+    // Ganti VIDEO_ID_xxx dengan ID file Google Drive kamu.
+    const videoList = [
+      'https://drive.google.com/file/d/1sMZJxPYeSyV-dB6ZkTynhhh_IBVHzSPL/preview',
+      'https://drive.google.com/file/d/VIDEO_ID_2/preview',
+      'https://drive.google.com/file/d/VIDEO_ID_3/preview'
+    ]
+
+    // === END CONFIG ===
+
+    const playerFrame = document.getElementById('playerFrame')
+    const playerEmpty = document.getElementById('playerEmpty')
+    const nowInfo = document.getElementById('nowInfo')
+    const thumbs = document.getElementById('thumbs')
+    const prevBtn = document.getElementById('prevBtn')
+    const nextBtn = document.getElementById('nextBtn')
+    const openNew = document.getElementById('openNew')
+    const backBtn = document.getElementById('backBtn')
+
+    let current = 0
+
+    function normalizeDriveURL(url){
+      // accepts multiple Google Drive link formats and returns preview URL
+      try{
+        if(!url) return ''
+        // if already preview or direct
+        if(url.includes('/preview')) return url
+        // pattern: https://drive.google.com/file/d/ID/view?usp=sharing
+        const m = url.match(/\/d\/(.*?)\//)
+        if(m && m[1]) return `https://drive.google.com/file/d/${m[1]}/preview`
+        // pattern: https://drive.google.com/open?id=ID
+        const q = new URL(url)
+        if(q.searchParams && q.searchParams.get('id')){
+          return `https://drive.google.com/file/d/${q.searchParams.get('id')}/preview`
+        }
+        return url
+      }catch(e){
+        return url
+      }
+    }
+
+    function clearPlayer(){ playerFrame.innerHTML = '' }
+
+    function createIframe(src){
+      const ifr = document.createElement('iframe')
+      ifr.src = src
+      ifr.allow = 'autoplay; fullscreen; picture-in-picture'
+      ifr.allowFullscreen = true
+      return ifr
+    }
+
+    function createVideoElement(src){
+      const v = document.createElement('video')
+      v.controls = true
+      v.src = src
+      v.style.background = '#000'
+      v.autoplay = false
+      return v
+    }
+
+    function isDirectVideo(url){
+      return /(\.mp4|\.webm|\.ogg)(\?|$)/i.test(url)
+    }
+
+    function renderPlayer(url){
+      clearPlayer()
+      if(!url){ playerFrame.appendChild(playerEmpty); return }
+      const normalized = normalizeDriveURL(url)
+      // prefer HTML5 video for direct URLs
+      if(isDirectVideo(normalized)){
+        const v = createVideoElement(normalized)
+        playerFrame.appendChild(v)
+      }else{
+        const ifr = createIframe(normalized)
+        playerFrame.appendChild(ifr)
+      }
+      nowInfo.textContent = `${current+1} / ${videoList.length}`
+      openNew.onclick = ()=>{ window.open(normalized, '_blank') }
+    }
+
+    function buildThumbs(){
+      thumbs.innerHTML = ''
+      videoList.forEach((u,i)=>{
+        const t = document.createElement('div')
+        t.className = 'thumb'
+        // try to show thumbnail using Drive's thumbnail endpoint (may require permission);
+        // fallback: show black box with index
+        const n = normalizeDriveURL(u)
+        // Drive doesn't provide stable unauth thumb, so use a placeholder with index
+        t.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.3))'
+        t.textContent = ''
+        t.title = 'Video ' + (i+1)
+        t.style.display = 'flex'
+        t.style.alignItems = 'center'
+        t.style.justifyContent = 'center'
+        t.style.color = 'var(--muted)'
+        t.innerHTML = `<div style="text-align:center">Video<br>${i+1}</div>`
+        t.addEventListener('click', ()=>{ current = i; renderPlayer(videoList[current]); highlightThumb() })
+        thumbs.appendChild(t)
+      })
+      highlightThumb()
+    }
+
+    function highlightThumb(){
+      Array.from(thumbs.children).forEach((c,idx)=>{
+        c.style.border = idx===current ? '2px solid var(--accent)' : '1px solid rgba(255,255,255,0.03)'
+      })
+    }
+
+    prevBtn.addEventListener('click', ()=>{
+      if(videoList.length===0) return
+      current = (current-1+videoList.length) % videoList.length
+      renderPlayer(videoList[current]); highlightThumb()
+    })
+    nextBtn.addEventListener('click', ()=>{
+      if(videoList.length===0) return
+      current = (current+1) % videoList.length
+      renderPlayer(videoList[current]); highlightThumb()
+    })
+
+    // keyboard navigation
+    document.addEventListener('keydown',(e)=>{
+      if(e.key === 'ArrowRight') nextBtn.click()
+      if(e.key === 'ArrowLeft') prevBtn.click()
+    })
+
+    backBtn.addEventListener('click', ()=>{ window.history.back() })
+
+    // init
+    if(videoList.length>0){
+      buildThumbs()
+      renderPlayer(videoList[current])
+    }
+  </script></body>
+</html>
