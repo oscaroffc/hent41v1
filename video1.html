@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HENTAI VIDEOS</title>
+  <style>
+    :root{
+      --bg:#071126; --card:#091427; --muted:#a8b4c2; --accent:#7dd3fc;
+      --gap:10px; --radius:12px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Roboto,system-ui,Segoe UI,Arial;background:var(--bg);color:#eaf5ff}
+    header{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.03);background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent)}
+    .back{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:8px;border-radius:10px;color:var(--muted);cursor:pointer}
+    .title{font-weight:700}
+    main{padding:12px}
+
+    .player-wrap{max-width:980px;margin:14px auto;display:flex;flex-direction:column;gap:12px}
+    /* player-frame: default aspect ratio 16/9, max-height to avoid overflow */
+    .player-frame{
+      width:100%;
+      aspect-ratio: 16/9;
+      background:#000;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.04);
+      display:flex;align-items:center;justify-content:center;
+      max-height:88vh;
+    }
+    iframe,video{width:100%;height:100%;border:0;display:block;object-fit:contain}
+
+    .meta{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px;gap:8px}
+    .controls{display:flex;gap:8px;align-items:center;justify-content:center}
+
+    .btn{
+      background:linear-gradient(180deg, rgba(125,211,252,0.12), rgba(255,255,255,0.02));
+      border:1px solid rgba(255,255,255,0.03);
+      padding:8px 12px;border-radius:10px;color:var(--muted);cursor:pointer;font-weight:600;
+    }
+
+    /* GRID: 3 columns, vertical flow */
+    .list{
+      max-width:980px;margin:12px auto;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+      overflow:auto;padding:6px;border-radius:8px;
+      /* limit height so it won't push the whole page: on desktop allow bigger, on mobile smaller */
+      max-height: 40vh;
+    }
+
+    .thumb{
+      width:100%;height:100px;border-radius:10px;background-size:cover;background-position:center;border:1px solid rgba(255,255,255,0.03);
+      cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);padding:6px;text-align:center;
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.18));
+    }
+    .thumb .label{font-size:13px}
+
+    .thumb.active { border:2px solid var(--accent); box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
+
+    footer{padding:16px;text-align:center;color:var(--muted);font-size:13px}
+
+    @media (max-width:720px){
+      .player-wrap{margin:10px auto;padding:0 6px}
+      .thumb{height:80px}
+      .list{max-height:30vh;grid-template-columns:repeat(3,1fr)}
+    }
+    @media (max-width:420px){
+      .list{grid-template-columns:repeat(3,1fr);gap:8px}
+      .thumb{height:72px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <button class="back" id="backBtn">← Kembali</button>
+    <div class="title">HENTAI VIDEOS</div>
+  </header>
+
+  <main>
+    <div class="player-wrap">
+      <p style="margin:0 0 4px 0">harap menunggu karena file berukuran besar (realistic videos)</p>
+
+      <!-- player -->
+      <div class="player-frame" id="playerFrame">
+        <div id="playerEmpty" style="color:var(--muted);font-size:14px">Belum ada video. Silakan tambahkan link di array <code>videoList</code> di file ini.</div>
+      </div>
+
+      <div class="meta">
+        <div id="nowInfo">0 / 0</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="openNew">Buka di tab baru</button>
+          <button class="btn" id="expandBtn">Expand</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="prevBtn">Prev</button>
+        <button class="btn" id="nextBtn">Next</button>
+      </div>
+
+      <!-- grid list: 3 per row -->
+      <div class="list" id="thumbs"></div>
+    </div>
+  </main>
+
+  <footer>
+    request video chat gw <br>
+    <a style="display:inline;color:#9fbdd6" href="https://wa.me/+6282210466813?text=req+video+bang">whatsapp disini</a> <br>
+    <p>hentai by oscar</p> <br>
+    <p>api from waifu.pics & waifu.im</p>
+  </footer>
+
+  <script>
+    // === CONFIG ===
+    const videoList = [
+      'https://drive.google.com/file/d/1tN1yukKqnizi3HAU3Cq0evL7l7xnxnIQ/preview?usp=drivesdk',
+      'https://drive.google.com/file/d/1tSx83eKH7qgzTvY0du9njHDmKAjQTWF8/preview',
+      'https://drive.google.com/file/d/1tLh-KbuzLJrOp-966cOjXNTzKF7YZHOJ/preview',
+      'https://drive.google.com/file/d/1tS-sJtKGCs5Z4Se41HMAy-s1MkLbklD2/preview',
+      'https://drive.google.com/file/d/1tMTHHN8R_I6kfYl5oo0fdd3LX15ZhbFC/preview',
+    ]
+    // === END CONFIG ===
+
+    const playerFrame = document.getElementById('playerFrame')
+    const playerEmpty = document.getElementById('playerEmpty')
+    const nowInfo = document.getElementById('nowInfo')
+    const thumbs = document.getElementById('thumbs')
+    const prevBtn = document.getElementById('prevBtn')
+    const nextBtn = document.getElementById('nextBtn')
+    const openNew = document.getElementById('openNew')
+    const backBtn = document.getElementById('backBtn')
+    const expandBtn = document.getElementById('expandBtn')
+
+    let current = 0
+    let expanded = false
+
+    function normalizeDriveURL(url){
+      try{
+        if(!url) return ''
+        if(url.includes('/preview')) return url
+        const m = url.match(/\/d\/(.*?)\//)
+        if(m && m[1]) return `https://drive.google.com/file/d/${m[1]}/preview`
+        const q = new URL(url)
+        if(q.searchParams && q.searchParams.get('id')){
+          return `https://drive.google.com/file/d/${q.searchParams.get('id')}/preview`
+        }
+        return url
+      }catch(e){ return url }
+    }
+
+    function clearPlayer(){ playerFrame.innerHTML = '' }
+
+    function createIframe(src){
+      const ifr = document.createElement('iframe')
+      ifr.src = src
+      ifr.allow = 'autoplay; fullscreen; picture-in-picture'
+      ifr.allowFullscreen = true
+      ifr.style.border = '0'
+      // for iframe we can't read metadata -> fallback 16/9
+      playerFrame.style.aspectRatio = '16/9'
+      return ifr
+    }
+
+    function createVideoElement(src){
+      const v = document.createElement('video')
+      v.controls = true
+      v.src = src
+      v.style.background = '#000'
+      v.autoplay = false
+      v.preload = 'metadata'
+      // when metadata available, set aspect ratio to video's real ratio
+      v.addEventListener('loadedmetadata', ()=> {
+        const w = v.videoWidth || 16
+        const h = v.videoHeight || 9
+        // set container aspect-ratio to video ratio (width/height)
+        playerFrame.style.aspectRatio = (w && h) ? `${w}/${h}` : '16/9'
+        // also if expanded, cap height to viewport
+        if(expanded){
+          // nothing extra, CSS max-height applies
+        }
+      })
+      return v
+    }
+
+    function isDirectVideo(url){
+      return /(\.mp4|\.webm|\.ogg)(\?|$)/i.test(url)
+    }
+
+    function renderPlayer(url){
+      clearPlayer()
+      if(!url){ playerFrame.appendChild(playerEmpty); return }
+      const normalized = normalizeDriveURL(url)
+      if(isDirectVideo(normalized)){
+        const v = createVideoElement(normalized)
+        playerFrame.appendChild(v)
+        // try autoplay muted for quick preview (optional)
+        // v.muted = true; v.play().catch(()=>{})
+      }else{
+        const ifr = createIframe(normalized)
+        playerFrame.appendChild(ifr)
+      }
+      nowInfo.textContent = `${current+1} / ${videoList.length}`
+      openNew.onclick = ()=>{ window.open(normalized, '_blank') }
+    }
+
+    function buildThumbs(){
+      thumbs.innerHTML = ''
+      videoList.forEach((u,i)=>{
+        const t = document.createElement('div')
+        t.className = 'thumb'
+        t.title = 'Video ' + (i+1)
+        t.innerHTML = `<div class="label">Video ${i+1}</div>`
+        t.addEventListener('click', ()=>{ current = i; renderPlayer(videoList[current]); highlightThumb(); scrollThumbIntoView(i) })
+        thumbs.appendChild(t)
+      })
+      highlightThumb()
+    }
+
+    function scrollThumbIntoView(idx){
+      const node = thumbs.children[idx]
+      if(!node) return
+      // scroll container so the selected row is visible
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    function highlightThumb(){
+      Array.from(thumbs.children).forEach((c,idx)=>{
+        c.classList.toggle('active', idx===current)
+      })
+    }
+
+    prevBtn.addEventListener('click', ()=>{
+      if(videoList.length===0) return
+      current = (current-1+videoList.length) % videoList.length
+      renderPlayer(videoList[current]); highlightThumb(); scrollThumbIntoView(current)
+    })
+    nextBtn.addEventListener('click', ()=>{
+      if(videoList.length===0) return
+      current = (current+1) % videoList.length
+      renderPlayer(videoList[current]); highlightThumb(); scrollThumbIntoView(current)
+    })
+
+    expandBtn.addEventListener('click', ()=>{
+      expanded = !expanded
+      expandBtn.textContent = expanded ? 'Collapse' : 'Expand'
+      if(expanded){
+        playerFrame.style.maxHeight = '96vh'
+        // reduce thumb list height so player gets more room
+        thumbs.style.maxHeight = '22vh'
+      }else{
+        playerFrame.style.maxHeight = '88vh'
+        thumbs.style.maxHeight = ''
+      }
+      // adjust current element height if it's an iframe/video
+      const el = playerFrame.querySelector('iframe,video')
+      if(el){
+        // for iframe we keep aspect-ratio but CSS limits height
+        // nothing else needed
+      }
+      // scroll to top of player on expand
+      window.scrollTo({ top: playerFrame.getBoundingClientRect().top + window.scrollY - 12, behavior: 'smooth' })
+    })
+
+    // keyboard navigation
+    document.addEventListener('keydown',(e)=>{
+      if(e.key === 'ArrowRight') nextBtn.click()
+      if(e.key === 'ArrowLeft') prevBtn.click()
+    })
+
+    backBtn.addEventListener('click', ()=>{ window.history.back() })
+
+    // init
+    if(videoList.length>0){
+      buildThumbs()
+      renderPlayer(videoList[current])
+    }
+  </script>
+</body>
+</html>
